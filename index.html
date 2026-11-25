@@ -1,0 +1,2021 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>스마트 케이블 장력 계측기 (Smart Cable Tension)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Fonts: Inter & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+            mono: ['Inter', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /* Custom scrollbar & touch refinements */
+    html, body {
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+    }
+    input[type="range"] {
+      accent-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body class="bg-slate-200 text-slate-900 font-sans antialiased min-h-screen flex justify-center overflow-x-hidden">
+
+  <!-- Mobile-First App Shell (max-w-[500px] centered on desktop, full width on mobile) -->
+  <div class="w-full max-w-[500px] bg-slate-100 min-h-screen flex flex-col shadow-2xl relative">
+
+    <!-- Top Engineering Header -->
+    <header class="bg-slate-900 text-white px-4 py-3.5 sticky top-0 z-30 shadow-md">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <!-- Cable-Stayed Bridge SVG Icon -->
+          <div class="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-400/30 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 18h20" />
+              <path d="M12 3v15" />
+              <path d="M12 5L3 18" />
+              <path d="M12 8L6 18" />
+              <path d="M12 5l9 13" />
+              <path d="M12 8l6 10" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-base font-extrabold tracking-tight leading-tight truncate">스마트 케이블 장력 계측기</h1>
+            <p class="text-[11px] text-slate-400 font-medium tracking-wide truncate">Smart Cable Tension · 진동법(FFT)</p>
+          </div>
+        </div>
+        <button id="btn-open-guide" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 shrink-0 transition">
+          <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 16v-4M12 8h.01"></path>
+          </svg>
+          <span>가이드</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Scrollable Content Area -->
+    <main class="flex-1 px-3.5 pt-3.5 pb-24 space-y-3.5">
+
+      <!-- ========================================================= -->
+      <!-- TAB 1: 계측 (MEASURE)                                      -->
+      <!-- ========================================================= -->
+      <section id="tab-measure" class="space-y-3.5">
+
+        <!-- Mode Toggle Card -->
+        <div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-200/80 space-y-3">
+          <div class="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl">
+            <button id="mode-live-btn" type="button" class="py-2.5 px-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>실제 센서 계측 (Live)</span>
+            </button>
+            <button id="mode-demo-btn" type="button" class="py-2.5 px-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span>시뮬레이션 데모 (Demo)</span>
+            </button>
+          </div>
+
+          <!-- Live Mode Status & iOS Permission Box -->
+          <div id="live-mode-panel" class="hidden space-y-2">
+            <div id="sensor-status-box" class="rounded-xl p-3 bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p id="sensor-status-title" class="text-xs font-bold text-slate-800">가속도 센서 대기 중</p>
+                <p id="sensor-status-desc" class="text-[11px] text-slate-500 mt-0.5 leading-snug">계측 시작 시 스마트폰 내장 MEMS 가속도계를 사용합니다.</p>
+              </div>
+              <button id="btn-ios-permission" type="button" class="hidden shrink-0 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition">
+                센서 권한 허용
+              </button>
+            </div>
+            <div id="sensor-warning-banner" class="hidden rounded-xl p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+              <strong class="font-bold">센서 신호 미감지 안내:</strong> PC 환경이거나 비보안(HTTP) 접속에서는 스마트폰 가속도 센서가 동작하지 않습니다. 모바일 HTTPS 환경에서 접속하시거나, 상단의 <strong>[시뮬레이션 데모]</strong> 모드로 기능을 테스트해 보세요.
+            </div>
+          </div>
+
+          <!-- Demo Mode Controls -->
+          <div id="demo-mode-panel" class="rounded-xl p-3 bg-blue-50/80 border border-blue-200/80 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                </svg>
+                가상 장력 변화율 시뮬레이션
+              </span>
+              <span id="demo-delta-badge" class="text-xs font-extrabold px-2 py-0.5 rounded-md bg-white text-blue-700 border border-blue-200 font-mono">0%</span>
+            </div>
+            <input id="demo-delta-slider" type="range" min="-20" max="10" step="1" value="0" class="w-full h-2 bg-blue-200 rounded-lg cursor-pointer" />
+            <div class="flex justify-between text-[10px] font-semibold text-blue-800/70">
+              <span>-20% (장력 저하/위험)</span>
+              <span>0% (설계치)</span>
+              <span>+10% (과장력)</span>
+            </div>
+            <p class="text-[11px] text-blue-800/90 leading-snug">
+              현재 선택된 케이블 제원을 바탕으로 1~3차 모드 합성 진동 신호와 현장 노이즈를 생성하여 FFT 분석을 시연합니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- Quick Cable Summary Bar -->
+        <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-white">선택 케이블</span>
+              <h2 id="summary-cable-name" class="text-sm font-extrabold text-slate-900 truncate">표준 사장교 케이블 A</h2>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-600 font-mono">
+              <span>L=<strong id="summary-L" class="text-slate-900">120</strong>m</span>
+              <span>m=<strong id="summary-m" class="text-slate-900">45</strong>kg/m</span>
+              <span>T₀=<strong id="summary-T0" class="text-blue-700">3500</strong>kN</span>
+            </div>
+          </div>
+          <button id="btn-goto-specs" type="button" class="shrink-0 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-xs font-bold text-slate-700 transition">
+            제원 변경
+          </button>
+        </div>
+
+        <!-- Measurement Controls Card -->
+        <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-3.5">
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Axis Selector -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1.5">측정 축 (가속도계)</label>
+              <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl" id="axis-selector">
+                <button type="button" data-axis="z" class="axis-btn py-2 rounded-lg text-xs font-bold transition">Z축</button>
+                <button type="button" data-axis="x" class="axis-btn py-2 rounded-lg text-xs font-bold transition">X축</button>
+                <button type="button" data-axis="y" class="axis-btn py-2 rounded-lg text-xs font-bold transition">Y축</button>
+              </div>
+              <p id="axis-hint" class="text-[10px] text-slate-400 mt-1">화면 수직 방향 (권장)</p>
+            </div>
+
+            <!-- Duration Selector -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1.5">계측 시간</label>
+              <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl" id="duration-selector">
+                <button type="button" data-dur="10" class="dur-btn py-2 rounded-lg text-xs font-bold transition">10초</button>
+                <button type="button" data-dur="15" class="dur-btn py-2 rounded-lg text-xs font-bold transition">15초</button>
+                <button type="button" data-dur="30" class="dur-btn py-2 rounded-lg text-xs font-bold transition">30초</button>
+              </div>
+              <p class="text-[10px] text-slate-400 mt-1">길수록 주파수 분해능 향상</p>
+            </div>
+          </div>
+
+          <!-- Prominent Start / Stop Button -->
+          <button id="btn-measure-toggle" type="button" class="w-full py-4 px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-extrabold text-base shadow-lg transition flex items-center justify-center gap-2.5">
+            <svg id="icon-play" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"></path>
+            </svg>
+            <svg id="icon-stop" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24">
+              <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+            </svg>
+            <span id="btn-measure-text">진동 계측 시작</span>
+          </button>
+
+          <!-- Live Countdown & Progress Bar -->
+          <div id="measure-progress-box" class="hidden space-y-1.5">
+            <div class="flex items-center justify-between text-xs font-bold">
+              <span class="text-blue-700 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                <span id="countdown-label">남은 시간: 10.0초</span>
+              </span>
+              <span id="sample-rate-label" class="text-slate-500 font-mono text-[11px]">0 samples (0 Hz)</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div id="measure-progress-bar" class="h-full bg-blue-600 rounded-full transition-all duration-100" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Time-Domain Waveform Card -->
+        <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+              <span class="w-1.5 h-4 rounded-full bg-blue-600"></span>
+              실시간 가속도 파형 (Time-Domain)
+            </h3>
+            <span id="live-accel-val" class="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">0.000 m/s²</span>
+          </div>
+          <div id="waveform-container" class="w-full h-36 rounded-xl bg-slate-900 overflow-hidden relative border border-slate-800">
+            <canvas id="waveform-canvas" class="block w-full h-full"></canvas>
+          </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- RESULT SECTION (Shown after measurement completes)         -->
+        <!-- ========================================================= -->
+        <div id="result-section" class="hidden space-y-3.5">
+
+          <!-- Traffic-Light Verdict Card -->
+          <div id="verdict-card" class="rounded-2xl p-4 shadow-md border-2 bg-white space-y-3 transition-colors">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">장력 산정 결과 (진동법)</p>
+                <div class="flex items-baseline gap-1.5 mt-0.5">
+                  <span id="res-tension" class="text-3xl font-extrabold font-mono tracking-tight text-slate-900">3,500</span>
+                  <span class="text-sm font-bold text-slate-500">kN</span>
+                </div>
+              </div>
+              <div id="verdict-badge" class="px-3.5 py-2 rounded-xl text-sm font-extrabold shadow-sm text-center">
+                정상
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 pt-2.5 border-t border-slate-200/80 text-center">
+              <div class="bg-slate-50 rounded-xl p-2">
+                <p class="text-[10px] font-bold text-slate-500">기준 장력 (T₀)</p>
+                <p id="res-ref-tension" class="text-xs font-extrabold font-mono text-slate-800 mt-0.5">3,500 kN</p>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-2">
+                <p class="text-[10px] font-bold text-slate-500">장력 변화율 (ΔT)</p>
+                <p id="res-deviation" class="text-xs font-extrabold font-mono mt-0.5">0.0%</p>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-2">
+                <p class="text-[10px] font-bold text-slate-500">적용 고유진동수</p>
+                <p id="res-freq-summary" class="text-xs font-extrabold font-mono text-blue-700 mt-0.5">1.16 Hz (1차)</p>
+              </div>
+            </div>
+
+            <p id="verdict-message" class="text-xs font-medium rounded-xl p-2.5 leading-snug"></p>
+          </div>
+
+          <!-- FFT Frequency Spectrum Card -->
+          <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                <span class="w-1.5 h-4 rounded-full bg-emerald-600"></span>
+                FFT 주파수 스펙트럼 (0.2 ~ 15 Hz)
+              </h3>
+              <span id="fft-meta-info" class="text-[10px] font-mono font-semibold text-slate-500">fs=60Hz · N=4096</span>
+            </div>
+            <div id="fft-container" class="w-full h-44 rounded-xl bg-slate-900 overflow-hidden relative border border-slate-800">
+              <canvas id="fft-canvas" class="block w-full h-full"></canvas>
+            </div>
+          </div>
+
+          <!-- Interactive Peak & Mode Order Adjustment Card -->
+          <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-3.5">
+            <div>
+              <label class="block text-xs font-extrabold text-slate-800 mb-2">1. 자동 추출 탁월 주파수 선택 (Top 3)</label>
+              <div id="peak-buttons-container" class="grid grid-cols-3 gap-2">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-extrabold text-slate-800 mb-2">2. 진동 모드 차수 (n) 선택</label>
+              <div class="grid grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl" id="mode-order-selector">
+                <button type="button" data-n="1" class="mode-n-btn py-2.5 rounded-lg text-xs font-bold transition">1차 (n=1)</button>
+                <button type="button" data-n="2" class="mode-n-btn py-2.5 rounded-lg text-xs font-bold transition">2차 (n=2)</button>
+                <button type="button" data-n="3" class="mode-n-btn py-2.5 rounded-lg text-xs font-bold transition">3차 (n=3)</button>
+                <button type="button" data-n="4" class="mode-n-btn py-2.5 rounded-lg text-xs font-bold transition">4차 (n=4)</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-extrabold text-slate-800 mb-2">3. 주파수 수동 미세 조정 (Hz)</label>
+              <div class="flex items-center gap-2">
+                <button id="btn-freq-minus" type="button" class="w-12 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 font-extrabold text-slate-800 text-base transition">-0.01</button>
+                <div class="relative flex-1">
+                  <input id="input-manual-freq" type="number" step="0.01" min="0.1" max="30" class="w-full h-11 px-3 pr-10 rounded-xl border border-slate-300 text-center font-mono font-extrabold text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Hz</span>
+                </div>
+                <button id="btn-freq-plus" type="button" class="w-12 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 active:bg-slate-300 font-extrabold text-slate-800 text-base transition">+0.01</button>
+              </div>
+            </div>
+
+            <!-- Save Record Button -->
+            <button id="btn-save-record" type="button" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-extrabold text-sm shadow-md transition flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              <span>측정 이력 저장</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- TAB 2: 케이블 제원 (CABLE SPECS)                           -->
+      <!-- ========================================================= -->
+      <section id="tab-specs" class="hidden space-y-3.5">
+
+        <!-- Presets Card -->
+        <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-2.5">
+          <h2 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+            <span class="w-1.5 h-4 rounded-full bg-blue-600"></span>
+            대표 사장교 케이블 프리셋 (빠른 선택)
+          </h2>
+          <div class="space-y-2" id="preset-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Custom Cable Specs Form -->
+        <form id="specs-form" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3.5">
+          <h2 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+            <span class="w-1.5 h-4 rounded-full bg-slate-800"></span>
+            케이블 제원 직접 입력
+          </h2>
+
+          <div>
+            <label for="spec-name" class="block text-xs font-bold text-slate-600 mb-1">교량 / 케이블명</label>
+            <input id="spec-name" type="text" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="예: 서해대교 주탑 C12" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="spec-L" class="block text-xs font-bold text-slate-600 mb-1">유효 길이 L (m)</label>
+              <input id="spec-L" type="number" step="0.1" min="5" max="1000" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label for="spec-m" class="block text-xs font-bold text-slate-600 mb-1">단위 중량 m (kg/m)</label>
+              <input id="spec-m" type="number" step="0.1" min="1" max="500" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="spec-EI" class="block text-xs font-bold text-slate-600 mb-1">휨강성 EI (kN·m²)</label>
+              <input id="spec-EI" type="number" step="1" min="0" max="50000" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label for="spec-T0" class="block text-xs font-bold text-slate-600 mb-1">설계/기준 장력 T₀ (kN)</label>
+              <input id="spec-T0" type="number" step="10" min="10" max="50000" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <!-- Expected Theoretical Frequencies Helper -->
+          <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+            <p class="text-[11px] font-bold text-slate-600 mb-1.5">기준 장력(T₀) 대비 이론 고유진동수 (참고용)</p>
+            <div class="grid grid-cols-3 gap-2 text-center font-mono">
+              <div class="bg-white rounded-lg py-1.5 border border-slate-200">
+                <span class="block text-[10px] text-slate-400 font-sans">1차 모드</span>
+                <strong id="theo-f1" class="text-xs text-slate-800">1.16 Hz</strong>
+              </div>
+              <div class="bg-white rounded-lg py-1.5 border border-slate-200">
+                <span class="block text-[10px] text-slate-400 font-sans">2차 모드</span>
+                <strong id="theo-f2" class="text-xs text-slate-800">2.32 Hz</strong>
+              </div>
+              <div class="bg-white rounded-lg py-1.5 border border-slate-200">
+                <span class="block text-[10px] text-slate-400 font-sans">3차 모드</span>
+                <strong id="theo-f3" class="text-xs text-slate-800">3.49 Hz</strong>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-extrabold text-sm shadow-md transition">
+            케이블 제원 적용 및 계측으로 이동
+          </button>
+        </form>
+
+        <!-- Engineering Formula Card -->
+        <div class="bg-slate-800 text-slate-100 rounded-2xl p-4 shadow-sm space-y-2">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-blue-300">적용 공학 공식 (진동법 · 휨강성 고려)</p>
+          <div class="bg-slate-900/80 rounded-xl p-3 font-mono text-xs sm:text-sm text-center text-emerald-300 border border-slate-700 leading-relaxed">
+            T (kN) = [ 4 · m · L² · (f<sub>n</sub> / n)² ] / 1000 &minus; [ n² · &pi;² · EI / L² ]
+          </div>
+          <ul class="text-[11px] text-slate-300 space-y-1 pt-1 list-disc list-inside">
+            <li><strong>T</strong> : 케이블 장력 (kN), <strong>f<sub>n</sub></strong> : n차 고유진동수 (Hz)</li>
+            <li><strong>m</strong> : 단위 중량 (kg/m), <strong>L</strong> : 유효 길이 (m), <strong>EI</strong> : 휨강성 (kN·m²)</li>
+            <li>판정 기준: <span class="text-emerald-400 font-bold">정상</span>(|ΔT|&lt;5%), <span class="text-amber-400 font-bold">주의</span>(5~10%), <span class="text-red-400 font-bold">정밀진단 요망</span>(≥10%)</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ========================================================= -->
+      <!-- TAB 3: 측정 이력 (HISTORY)                                 -->
+      <!-- ========================================================= -->
+      <section id="tab-history" class="hidden space-y-3.5">
+
+        <!-- History Action Bar -->
+        <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-extrabold text-slate-900">저장된 계측 이력 (<span id="history-count">0</span>건)</h2>
+            <button id="btn-clear-history" type="button" class="text-xs font-bold text-red-600 hover:text-red-700 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition">
+              전체 삭제
+            </button>
+          </div>
+          <button id="btn-export-csv" type="button" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-extrabold text-sm shadow-sm transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>CSV 내보내기 (엑셀용)</span>
+          </button>
+        </div>
+
+        <!-- History List Container -->
+        <div id="history-list" class="space-y-2.5">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="history-empty" class="bg-white rounded-2xl p-8 text-center border border-slate-200/80 space-y-2">
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+              <rect x="9" y="3" width="6" height="4" rx="1"></rect>
+            </svg>
+          </div>
+          <p class="text-sm font-bold text-slate-700">저장된 측정 이력이 없습니다</p>
+          <p class="text-xs text-slate-500">계측 탭에서 진동을 측정한 뒤 [측정 이력 저장]을 눌러 기록을 남겨보세요.</p>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Fixed Navigation Bar -->
+    <nav class="fixed bottom-0 w-full max-w-[500px] bg-white border-t border-slate-200 px-2 py-1.5 z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+      <div class="grid grid-cols-3 gap-1">
+        <button type="button" data-tab="measure" class="nav-tab-btn py-2 rounded-xl flex flex-col items-center justify-center gap-0.5 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <span class="text-[11px] font-bold">계측</span>
+        </button>
+        <button type="button" data-tab="specs" class="nav-tab-btn py-2 rounded-xl flex flex-col items-center justify-center gap-0.5 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+          <span class="text-[11px] font-bold">케이블 제원</span>
+        </button>
+        <button type="button" data-tab="history" class="nav-tab-btn py-2 rounded-xl flex flex-col items-center justify-center gap-0.5 transition relative">
+          <div class="relative">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span id="nav-history-badge" class="hidden absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-blue-600 text-white text-[10px] font-extrabold flex items-center justify-center">0</span>
+          </div>
+          <span class="text-[11px] font-bold">측정 이력</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ========================================================= -->
+    <!-- FIELD GUIDE MODAL                                          -->
+    <!-- ========================================================= -->
+    <div id="guide-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div class="bg-white w-full max-w-[480px] rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+          <h2 class="text-base font-extrabold">현장 사용 가이드</h2>
+          <button id="btn-close-guide" type="button" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <div class="p-3.5 rounded-xl bg-blue-50 border border-blue-200 space-y-1">
+            <h3 class="font-extrabold text-blue-900">1. 스마트폰 부착 위치 및 방법</h3>
+            <p class="text-blue-900/90">고감쇠 고무댐퍼(HDRD)의 구속 효과를 피하기 위해 <strong>가급적 댐퍼 상단 케이블 외피(PE관)</strong>에 벨크로 스트랩이나 전용 곡면 지그를 이용해 흔들림 없이 밀착 고정합니다. 기본 축(Z축) 사용 시 스마트폰 화면이 케이블 진동 방향에 수직이 되도록 부착하세요.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <h3 class="font-extrabold text-slate-900">2. 가진 및 계측 요령</h3>
+            <p>차량 통행에 의한 상시 미진동이 약할 경우, 케이블을 손으로 가볍게 흔들거나 고무망치로 살짝 타격(가진)한 뒤 <strong>10~15초</strong> 동안 계측하면 1~3차 고유진동수가 선명하게 추출됩니다.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
+            <h3 class="font-extrabold text-amber-900">3. 모바일 브라우저 HTTPS 및 센서 권한</h3>
+            <p class="text-amber-900/90">안드로이드 크롬 및 아이폰 사파리의 보안 정책상 실제 가속도 센서를 사용하려면 반드시 <strong>HTTPS 주소</strong>(예: GitHub Pages 등)로 접속해야 합니다. iOS 13 이상에서는 최초 1회 [센서 권한 허용] 팝업 승인 절차가 필요합니다.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
+            <h3 class="font-extrabold text-emerald-900">4. 시뮬레이션 데모 모드 활용</h3>
+            <p class="text-emerald-900/90">사무실이나 PC 환경에서는 <strong>[시뮬레이션 데모]</strong> 모드로 전환하여 가상의 장력 저하(-20% ~ +10%)에 따른 FFT 스펙트럼 변화와 신호등 판정 로직을 즉시 시연할 수 있습니다.</p>
+          </div>
+        </div>
+        <div class="p-4 border-t border-slate-200 bg-slate-50">
+          <button id="btn-confirm-guide" type="button" class="w-full py-3 rounded-xl bg-slate-900 text-white font-extrabold text-sm">확인했습니다</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- CUSTOM CONFIRM MODAL (Replaces native confirm())           -->
+    <!-- ========================================================= -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-[340px] rounded-2xl p-5 shadow-2xl space-y-4">
+        <div class="space-y-1.5">
+          <h3 id="confirm-title" class="text-base font-extrabold text-slate-900">이력 전체 삭제</h3>
+          <p id="confirm-desc" class="text-xs text-slate-600 leading-relaxed">저장된 모든 측정 이력이 삭제되며 복구할 수 없습니다. 계속하시겠습니까?</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <button id="btn-confirm-cancel" type="button" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition">취소</button>
+          <button id="btn-confirm-ok" type="button" class="py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div id="toast" class="pointer-events-none fixed bottom-20 left-1/2 -translate-x-1/2 z-50 opacity-0 transition-opacity duration-200 w-[90%] max-w-[440px]">
+      <div id="toast-inner" class="bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-xl text-center">
+        알림 메시지
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- APPLICATION LOGIC & SIGNAL PROCESSING (PURE JS)            -->
+  <!-- ========================================================= -->
+  <script>
+    'use strict';
+
+    // ---------------------------------------------------------
+    // 1. CONSTANTS, PRESETS & APPLICATION STATE
+    // ---------------------------------------------------------
+    const STORAGE_KEY_SPECS = 'sct_cable_specs_v1';
+    const STORAGE_KEY_HISTORY = 'sct_history_v1';
+
+    const CABLE_PRESETS = [
+      {
+        id: 'preset-a',
+        name: '표준 사장교 케이블 A',
+        L: 120,
+        m: 45,
+        EI: 150,
+        T0: 3500,
+        desc: '중장경간 대표 케이블 (L=120m, T₀=3500kN)'
+      },
+      {
+        id: 'preset-b',
+        name: '단경간 케이블 B',
+        L: 65,
+        m: 32,
+        EI: 120,
+        T0: 2200,
+        desc: '주탑 인접 단케이블 (L=65m, T₀=2200kN)'
+      },
+      {
+        id: 'preset-c',
+        name: '장대 사장교 케이블 C',
+        L: 210,
+        m: 62,
+        EI: 220,
+        T0: 5400,
+        desc: '중앙경간 장대 케이블 (L=210m, T₀=5400kN)'
+      }
+    ];
+
+    const state = {
+      activeTab: 'measure',        // 'measure' | 'specs' | 'history'
+      mode: 'demo',                // 'live' | 'demo' (auto-switches cleanly; default demo so desktop/preview works immediately)
+      axis: 'z',                   // 'z' | 'x' | 'y'
+      duration: 10,                // seconds: 10 | 15 | 30
+      demoDeltaPct: 0,             // -20 to +10 (%)
+      cable: loadSavedSpecs(),
+      history: loadSavedHistory(),
+
+      // Sensor & recording state
+      isRecording: false,
+      sensorPermissionGranted: false,
+      sensorDetected: false,
+      rawSamples: [],              // [{ t: seconds, v: m/s^2 }]
+      recordStartPerf: 0,
+      demoIntervalId: null,
+      uiRafId: null,
+      sensorWatchdogId: null,
+
+      // Analysis result state
+      lastResult: null,            // { fs, fftSize, freqs, mags, peaks, selectedPeakIdx, modeOrder, manualFreq, tension, deviationPct }
+      pendingConfirmAction: null
+    };
+
+    // ---------------------------------------------------------
+    // 2. ENGINEERING FORMULAS
+    // ---------------------------------------------------------
+    /**
+     * Calculate cable tension T (kN) using vibration method with bending stiffness EI.
+     * T (kN) = [4 * m * L^2 * (f_n / n)^2] / 1000 - [n^2 * pi^2 * EI / L^2]
+     */
+    function calculateTension(freqHz, modeOrder, cable) {
+      const { L, m, EI } = cable;
+      const n = Math.max(1, Number(modeOrder) || 1);
+      const fn = Math.max(0.01, Number(freqHz) || 0.01);
+      const stringTerm = (4 * m * L * L * Math.pow(fn / n, 2)) / 1000;
+      const stiffnessTerm = (n * n * Math.PI * Math.PI * EI) / (L * L);
+      return Math.max(0, stringTerm - stiffnessTerm);
+    }
+
+    /**
+     * Inverse formula: compute theoretical n-th natural frequency (Hz) for a given tension T (kN).
+     */
+    function calculateTheoreticalFreq(tensionKN, modeOrder, cable) {
+      const { L, m, EI } = cable;
+      const n = Math.max(1, Number(modeOrder) || 1);
+      const stiffnessTerm = (n * n * Math.PI * Math.PI * EI) / (L * L);
+      const numerator = 1000 * (Math.max(1, tensionKN) + stiffnessTerm);
+      const denominator = 4 * m * L * L;
+      return n * Math.sqrt(numerator / denominator);
+    }
+
+    /**
+     * Traffic-light verdict based on |ΔT| (%).
+     */
+    function getVerdict(deviationPct) {
+      const absDev = Math.abs(deviationPct);
+      if (absDev < 5) {
+        return {
+          code: 'normal',
+          label: '정상',
+          badgeClass: 'bg-emerald-500 text-white',
+          cardBorder: 'border-emerald-500',
+          msgClass: 'bg-emerald-50 text-emerald-900 border border-emerald-200',
+          devColor: 'text-emerald-600',
+          message: '설계 기준 장력 대비 변화율이 ±5% 이내로 양호한 상태입니다.'
+        };
+      } else if (absDev < 10) {
+        return {
+          code: 'caution',
+          label: '주의',
+          badgeClass: 'bg-amber-500 text-white',
+          cardBorder: 'border-amber-500',
+          msgClass: 'bg-amber-50 text-amber-900 border border-amber-200',
+          devColor: 'text-amber-600',
+          message: '기준 장력 대비 5~10% 편차가 발생했습니다. 재측정 및 정착부 육안 점검을 권장합니다.'
+        };
+      } else {
+        return {
+          code: 'warning',
+          label: '정밀진단 요망',
+          badgeClass: 'bg-red-600 text-white',
+          cardBorder: 'border-red-600',
+          msgClass: 'bg-red-50 text-red-900 border border-red-200',
+          devColor: 'text-red-600',
+          message: '기준 장력 대비 10% 이상 편차가 감지되었습니다. 정밀 계측기 확인 및 안전진단이 필요합니다.'
+        };
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 3. SIGNAL PROCESSING (RESAMPLING + HANNING + RADIX-2 FFT)
+    // ---------------------------------------------------------
+    function nextPowerOf2(n) {
+      let p = 1;
+      while (p < n) p <<= 1;
+      return p;
+    }
+
+    /**
+     * In-place iterative Cooley-Tukey Radix-2 FFT.
+     * re and im are Float64Array of length N (power of 2).
+     */
+    function computeFFT(re, im) {
+      const n = re.length;
+      // Bit-reversal permutation
+      for (let i = 1, j = 0; i < n; i++) {
+        let bit = n >> 1;
+        for (; j & bit; bit >>= 1) {
+          j ^= bit;
+        }
+        j ^= bit;
+        if (i < j) {
+          const tmpRe = re[i]; re[i] = re[j]; re[j] = tmpRe;
+          const tmpIm = im[i]; im[i] = im[j]; im[j] = tmpIm;
+        }
+      }
+
+      // Butterfly stages
+      for (let len = 2; len <= n; len <<= 1) {
+        const halfLen = len >> 1;
+        const ang = (-2 * Math.PI) / len;
+        const wLenRe = Math.cos(ang);
+        const wLenIm = Math.sin(ang);
+
+        for (let i = 0; i < n; i += len) {
+          let wRe = 1.0;
+          let wIm = 0.0;
+          for (let j = 0; j < halfLen; j++) {
+            const uRe = re[i + j];
+            const uIm = im[i + j];
+            const vRe = re[i + j + halfLen] * wRe - im[i + j + halfLen] * wIm;
+            const vIm = re[i + j + halfLen] * wIm + im[i + j + halfLen] * wRe;
+
+            re[i + j] = uRe + vRe;
+            im[i + j] = uIm + vIm;
+            re[i + j + halfLen] = uRe - vRe;
+            im[i + j + halfLen] = uIm - vIm;
+
+            const nextWRe = wRe * wLenRe - wIm * wLenIm;
+            wIm = wRe * wLenIm + wIm * wLenRe;
+            wRe = nextWRe;
+          }
+        }
+      }
+    }
+
+    /**
+     * Full DSP pipeline:
+     * 1) Compute average fs from timestamps
+     * 2) Linear interpolation resampling onto uniform grid (removes OS jitter)
+     * 3) DC offset removal (mean subtraction)
+     * 4) Hanning window
+     * 5) Zero-pad to >= 4096 (power of 2) & Radix-2 FFT
+     * 6) Extract 0.2~15 Hz spectrum and top 3 peaks with parabolic interpolation
+     */
+    function analyzeSignal(samples) {
+      if (!samples || samples.length < 32) {
+        throw new Error('분석할 데이터가 부족합니다. 최소 2초 이상 계측해 주세요.');
+      }
+
+      // Ensure strictly non-decreasing timestamps
+      const clean = [samples[0]];
+      for (let i = 1; i < samples.length; i++) {
+        if (samples[i].t > clean[clean.length - 1].t) {
+          clean.push(samples[i]);
+        }
+      }
+      if (clean.length < 32) {
+        throw new Error('유효한 샘플 수가 부족합니다.');
+      }
+
+      const t0 = clean[0].t;
+      const tEnd = clean[clean.length - 1].t;
+      const totalDuration = tEnd - t0;
+      if (totalDuration <= 0.5) {
+        throw new Error('계측 시간이 너무 짧습니다.');
+      }
+
+      const N = clean.length;
+      const fs = (N - 1) / totalDuration;
+      const dt = 1 / fs;
+
+      // 1. Uniform resampling via linear interpolation
+      const uniform = new Float64Array(N);
+      let srcIdx = 0;
+      for (let i = 0; i < N; i++) {
+        const targetT = t0 + i * dt;
+        while (srcIdx < clean.length - 2 && clean[srcIdx + 1].t < targetT) {
+          srcIdx++;
+        }
+        const p0 = clean[srcIdx];
+        const p1 = clean[srcIdx + 1];
+        const span = p1.t - p0.t;
+        const frac = span > 0 ? Math.min(1, Math.max(0, (targetT - p0.t) / span)) : 0;
+        uniform[i] = p0.v + frac * (p1.v - p0.v);
+      }
+
+      // 2. DC Offset Removal (detrend mean)
+      let mean = 0;
+      for (let i = 0; i < N; i++) mean += uniform[i];
+      mean /= N;
+
+      // 3. Hanning window & zero-padding to >= 4096
+      const fftSize = Math.max(4096, nextPowerOf2(N * 2));
+      const re = new Float64Array(fftSize);
+      const im = new Float64Array(fftSize);
+      for (let i = 0; i < N; i++) {
+        const win = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (N - 1)));
+        re[i] = (uniform[i] - mean) * win;
+      }
+
+      // 4. FFT
+      computeFFT(re, im);
+
+      // 5. Single-sided magnitude spectrum (0.2 Hz ~ 15 Hz)
+      const halfN = fftSize / 2;
+      const df = fs / fftSize;
+      const scale = 4 / N; // 2/N single-sided * 2.0 Hanning coherent gain
+
+      const fullMag = new Float64Array(halfN + 1);
+      for (let k = 0; k <= halfN; k++) {
+        fullMag[k] = Math.hypot(re[k], im[k]) * scale;
+      }
+
+      const plotFreqs = [];
+      const plotMags = [];
+      const minPlotFreq = 0.2;
+      const maxPlotFreq = Math.min(15.0, fs / 2);
+
+      for (let k = 1; k <= halfN; k++) {
+        const f = k * df;
+        if (f >= minPlotFreq && f <= maxPlotFreq) {
+          plotFreqs.push(f);
+          plotMags.push(fullMag[k]);
+        }
+      }
+
+      // 6. Peak Detection (0.3 Hz ~ 15 Hz) with parabolic interpolation
+      const candidates = [];
+      const minPeakBin = Math.max(2, Math.ceil(0.3 / df));
+      const maxPeakBin = Math.min(halfN - 1, Math.floor(maxPlotFreq / df));
+
+      for (let k = minPeakBin; k <= maxPeakBin; k++) {
+        const prev = fullMag[k - 1];
+        const curr = fullMag[k];
+        const next = fullMag[k + 1];
+        if (curr > prev && curr >= next && curr > 0) {
+          // Parabolic interpolation for sub-bin accuracy
+          const denom = prev - 2 * curr + next;
+          let p = denom !== 0 ? (0.5 * (prev - next)) / denom : 0;
+          p = Math.max(-0.5, Math.min(0.5, p));
+          const refinedFreq = (k + p) * df;
+          const refinedAmp = curr - 0.25 * (prev - next) * p;
+          candidates.push({ freq: refinedFreq, amp: refinedAmp });
+        }
+      }
+
+      candidates.sort((a, b) => b.amp - a.amp);
+
+      // Filter peaks with minimum frequency separation (0.25 Hz)
+      const topPeaks = [];
+      for (const c of candidates) {
+        if (topPeaks.every(p => Math.abs(p.freq - c.freq) >= 0.25)) {
+          topPeaks.push(c);
+          if (topPeaks.length === 3) break;
+        }
+      }
+
+      // Fallback if flat signal
+      if (topPeaks.length === 0) {
+        const f1Est = calculateTheoreticalFreq(state.cable.T0, 1, state.cable);
+        topPeaks.push({ freq: f1Est, amp: 0 });
+      }
+
+      return {
+        fs,
+        fftSize,
+        plotFreqs,
+        plotMags,
+        peaks: topPeaks
+      };
+    }
+
+    // ---------------------------------------------------------
+    // 4. STORAGE HELPERS
+    // ---------------------------------------------------------
+    function loadSavedSpecs() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_SPECS);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.L > 0 && parsed.m > 0 && parsed.T0 > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) { /* ignore */ }
+      return { ...CABLE_PRESETS[0] };
+    }
+
+    function saveSpecs(specs) {
+      try {
+        localStorage.setItem(STORAGE_KEY_SPECS, JSON.stringify(specs));
+      } catch (e) { /* ignore */ }
+    }
+
+    function loadSavedHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_HISTORY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) { /* ignore */ }
+      return [];
+    }
+
+    function saveHistory(list) {
+      try {
+        localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(list));
+      } catch (e) { /* ignore */ }
+    }
+
+    // ---------------------------------------------------------
+    // 5. DOM REFERENCES
+    // ---------------------------------------------------------
+    const dom = {
+      tabs: {
+        measure: document.getElementById('tab-measure'),
+        specs: document.getElementById('tab-specs'),
+        history: document.getElementById('tab-history')
+      },
+      navButtons: document.querySelectorAll('.nav-tab-btn'),
+      navHistoryBadge: document.getElementById('nav-history-badge'),
+
+      modeLiveBtn: document.getElementById('mode-live-btn'),
+      modeDemoBtn: document.getElementById('mode-demo-btn'),
+      liveModePanel: document.getElementById('live-mode-panel'),
+      demoModePanel: document.getElementById('demo-mode-panel'),
+      sensorStatusTitle: document.getElementById('sensor-status-title'),
+      sensorStatusDesc: document.getElementById('sensor-status-desc'),
+      btnIosPermission: document.getElementById('btn-ios-permission'),
+      sensorWarningBanner: document.getElementById('sensor-warning-banner'),
+
+      demoDeltaSlider: document.getElementById('demo-delta-slider'),
+      demoDeltaBadge: document.getElementById('demo-delta-badge'),
+
+      summaryCableName: document.getElementById('summary-cable-name'),
+      summaryL: document.getElementById('summary-L'),
+      summaryM: document.getElementById('summary-m'),
+      summaryT0: document.getElementById('summary-T0'),
+      btnGotoSpecs: document.getElementById('btn-goto-specs'),
+
+      axisButtons: document.querySelectorAll('.axis-btn'),
+      axisHint: document.getElementById('axis-hint'),
+      durButtons: document.querySelectorAll('.dur-btn'),
+
+      btnMeasureToggle: document.getElementById('btn-measure-toggle'),
+      btnMeasureText: document.getElementById('btn-measure-text'),
+      iconPlay: document.getElementById('icon-play'),
+      iconStop: document.getElementById('icon-stop'),
+      measureProgressBox: document.getElementById('measure-progress-box'),
+      countdownLabel: document.getElementById('countdown-label'),
+      sampleRateLabel: document.getElementById('sample-rate-label'),
+      measureProgressBar: document.getElementById('measure-progress-bar'),
+
+      liveAccelVal: document.getElementById('live-accel-val'),
+      waveformContainer: document.getElementById('waveform-container'),
+      waveformCanvas: document.getElementById('waveform-canvas'),
+
+      resultSection: document.getElementById('result-section'),
+      verdictCard: document.getElementById('verdict-card'),
+      verdictBadge: document.getElementById('verdict-badge'),
+      verdictMessage: document.getElementById('verdict-message'),
+      resTension: document.getElementById('res-tension'),
+      resRefTension: document.getElementById('res-ref-tension'),
+      resDeviation: document.getElementById('res-deviation'),
+      resFreqSummary: document.getElementById('res-freq-summary'),
+
+      fftMetaInfo: document.getElementById('fft-meta-info'),
+      fftContainer: document.getElementById('fft-container'),
+      fftCanvas: document.getElementById('fft-canvas'),
+
+      peakButtonsContainer: document.getElementById('peak-buttons-container'),
+      modeNButtons: document.querySelectorAll('.mode-n-btn'),
+      inputManualFreq: document.getElementById('input-manual-freq'),
+      btnFreqMinus: document.getElementById('btn-freq-minus'),
+      btnFreqPlus: document.getElementById('btn-freq-plus'),
+      btnSaveRecord: document.getElementById('btn-save-record'),
+
+      presetList: document.getElementById('preset-list'),
+      specsForm: document.getElementById('specs-form'),
+      specName: document.getElementById('spec-name'),
+      specL: document.getElementById('spec-L'),
+      specM: document.getElementById('spec-m'),
+      specEI: document.getElementById('spec-EI'),
+      specT0: document.getElementById('spec-T0'),
+      theoF1: document.getElementById('theo-f1'),
+      theoF2: document.getElementById('theo-f2'),
+      theoF3: document.getElementById('theo-f3'),
+
+      historyCount: document.getElementById('history-count'),
+      historyList: document.getElementById('history-list'),
+      historyEmpty: document.getElementById('history-empty'),
+      btnExportCsv: document.getElementById('btn-export-csv'),
+      btnClearHistory: document.getElementById('btn-clear-history'),
+
+      guideModal: document.getElementById('guide-modal'),
+      btnOpenGuide: document.getElementById('btn-open-guide'),
+      btnCloseGuide: document.getElementById('btn-close-guide'),
+      btnConfirmGuide: document.getElementById('btn-confirm-guide'),
+
+      confirmModal: document.getElementById('confirm-modal'),
+      confirmTitle: document.getElementById('confirm-title'),
+      confirmDesc: document.getElementById('confirm-desc'),
+      btnConfirmCancel: document.getElementById('btn-confirm-cancel'),
+      btnConfirmOk: document.getElementById('btn-confirm-ok'),
+
+      toast: document.getElementById('toast'),
+      toastInner: document.getElementById('toast-inner')
+    };
+
+    // ---------------------------------------------------------
+    // 6. UI HELPERS (TOAST, MODALS, TABS)
+    // ---------------------------------------------------------
+    let toastTimer = null;
+    function showToast(msg, type = 'dark') {
+      dom.toastInner.textContent = msg;
+      dom.toastInner.className = 'text-xs font-bold px-4 py-3 rounded-xl shadow-xl text-center ' + (
+        type === 'success' ? 'bg-emerald-600 text-white' :
+        type === 'error' ? 'bg-red-600 text-white' :
+        'bg-slate-900 text-white'
+      );
+      dom.toast.classList.remove('opacity-0');
+      dom.toast.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        dom.toast.classList.remove('opacity-100');
+        dom.toast.classList.add('opacity-0');
+      }, 2400);
+    }
+
+    function openConfirmModal(title, desc, onConfirm) {
+      dom.confirmTitle.textContent = title;
+      dom.confirmDesc.textContent = desc;
+      state.pendingConfirmAction = onConfirm;
+      dom.confirmModal.classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+      dom.confirmModal.classList.add('hidden');
+      state.pendingConfirmAction = null;
+    }
+
+    function switchTab(tabName) {
+      if (state.isRecording && tabName !== 'measure') {
+        showToast('계측 진행 중에는 탭을 이동할 수 없습니다.', 'error');
+        return;
+      }
+      state.activeTab = tabName;
+      Object.entries(dom.tabs).forEach(([key, el]) => {
+        el.classList.toggle('hidden', key !== tabName);
+      });
+      dom.navButtons.forEach(btn => {
+        const active = btn.dataset.tab === tabName;
+        btn.className = 'nav-tab-btn py-2 rounded-xl flex flex-col items-center justify-center gap-0.5 transition ' + (
+          active ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
+        );
+      });
+      if (tabName === 'measure') {
+        resizeAndRedrawCanvases();
+      } else if (tabName === 'specs') {
+        populateSpecsForm();
+      } else if (tabName === 'history') {
+        renderHistory();
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 7. MODE, AXIS, DURATION & CABLE SUMMARY UI
+    // ---------------------------------------------------------
+    function setMode(mode) {
+      if (state.isRecording) {
+        stopMeasurement(false);
+      }
+      state.mode = mode;
+      const isLive = mode === 'live';
+
+      dom.modeLiveBtn.className = 'py-2.5 px-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ' + (
+        isLive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+      );
+      dom.modeDemoBtn.className = 'py-2.5 px-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ' + (
+        !isLive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+      );
+
+      dom.liveModePanel.classList.toggle('hidden', !isLive);
+      dom.demoModePanel.classList.toggle('hidden', isLive);
+
+      if (isLive) {
+        checkSensorCapability();
+      }
+    }
+
+    function checkSensorCapability() {
+      dom.sensorWarningBanner.classList.add('hidden');
+      const hasDeviceMotion = typeof window.DeviceMotionEvent !== 'undefined';
+      const needsIosPermission = hasDeviceMotion && typeof DeviceMotionEvent.requestPermission === 'function';
+
+      if (!hasDeviceMotion) {
+        dom.sensorStatusTitle.textContent = '가속도 센서 미지원 브라우저';
+        dom.sensorStatusDesc.textContent = '이 기기/브라우저에서는 DeviceMotion API를 사용할 수 없습니다.';
+        dom.btnIosPermission.classList.add('hidden');
+        dom.sensorWarningBanner.classList.remove('hidden');
+        return;
+      }
+
+      if (needsIosPermission && !state.sensorPermissionGranted) {
+        dom.sensorStatusTitle.textContent = 'iOS 센서 접근 권한 필요';
+        dom.sensorStatusDesc.textContent = '계측 전 오른쪽 [센서 권한 허용] 버튼을 눌러 승인해 주세요.';
+        dom.btnIosPermission.classList.remove('hidden');
+      } else {
+        dom.sensorStatusTitle.textContent = state.sensorPermissionGranted ? '가속도 센서 권한 승인됨' : '가속도 센서 대기 중';
+        dom.sensorStatusDesc.textContent = '케이블에 스마트폰을 밀착 고정한 뒤 [진동 계측 시작]을 누르세요.';
+        dom.btnIosPermission.classList.add('hidden');
+      }
+    }
+
+    async function requestIosMotionPermission() {
+      try {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          const response = await DeviceMotionEvent.requestPermission();
+          if (response === 'granted') {
+            state.sensorPermissionGranted = true;
+            checkSensorCapability();
+            showToast('가속도 센서 권한이 허용되었습니다.', 'success');
+            return true;
+          } else {
+            showToast('센서 권한이 거부되었습니다. 브라우저 설정을 확인하세요.', 'error');
+            return false;
+          }
+        }
+        return true;
+      } catch (err) {
+        dom.sensorWarningBanner.classList.remove('hidden');
+        showToast('센서 권한 요청에 실패했습니다 (HTTPS 접속 필요).', 'error');
+        return false;
+      }
+    }
+
+    function setAxis(axis) {
+      state.axis = axis;
+      const hints = {
+        z: '화면 수직 방향 (권장)',
+        x: '스마트폰 좌우 방향',
+        y: '스마트폰 상하 방향'
+      };
+      dom.axisHint.textContent = hints[axis];
+      dom.axisButtons.forEach(btn => {
+        const active = btn.dataset.axis === axis;
+        btn.className = 'axis-btn py-2 rounded-lg text-xs font-bold transition ' + (
+          active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+        );
+      });
+    }
+
+    function setDuration(sec) {
+      state.duration = sec;
+      dom.durButtons.forEach(btn => {
+        const active = Number(btn.dataset.dur) === sec;
+        btn.className = 'dur-btn py-2 rounded-lg text-xs font-bold transition ' + (
+          active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+        );
+      });
+    }
+
+    function updateCableSummaryUI() {
+      dom.summaryCableName.textContent = state.cable.name;
+      dom.summaryL.textContent = state.cable.L;
+      dom.summaryM.textContent = state.cable.m;
+      dom.summaryT0.textContent = Number(state.cable.T0).toLocaleString();
+    }
+
+    // ---------------------------------------------------------
+    // 8. CANVAS RENDERING (RESPONSIVE & HIGH-DPI)
+    // ---------------------------------------------------------
+    function setupHiDPICanvas(canvas, container) {
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, width: rect.width, height: rect.height };
+    }
+
+    function drawWaveform() {
+      const setup = setupHiDPICanvas(dom.waveformCanvas, dom.waveformContainer);
+      if (!setup) return;
+      const { ctx, width, height } = setup;
+
+      // Dark slate engineering background
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, width, height);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        const y = (height / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      for (let i = 1; i < 6; i++) {
+        const x = (width / 6) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+
+      // Zero center line
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const samples = state.rawSamples;
+      if (samples.length < 2) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '600 11px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('계측을 시작하면 실시간 진동 파형이 표시됩니다', width / 2, height / 2 - 8);
+        return;
+      }
+
+      // Show last 5 seconds rolling window
+      const latestT = samples[samples.length - 1].t;
+      const windowSec = 5.0;
+      const startT = Math.max(samples[0].t, latestT - windowSec);
+      const visible = samples.filter(s => s.t >= startT);
+      if (visible.length < 2) return;
+
+      // Remove mean for centered waveform display
+      let mean = 0;
+      for (const s of visible) mean += s.v;
+      mean /= visible.length;
+
+      let maxAbs = 0.25;
+      for (const s of visible) {
+        const a = Math.abs(s.v - mean);
+        if (a > maxAbs) maxAbs = a;
+      }
+      maxAbs *= 1.2;
+
+      // Draw waveform line
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      for (let i = 0; i < visible.length; i++) {
+        const x = ((visible[i].t - startT) / windowSec) * width;
+        const normY = (visible[i].v - mean) / maxAbs;
+        const y = height / 2 - normY * (height * 0.42);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Axis scale labels
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '600 10px Inter, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`+${maxAbs.toFixed(2)} m/s²`, 6, 13);
+      ctx.fillText(`-${maxAbs.toFixed(2)} m/s²`, 6, height - 5);
+      ctx.textAlign = 'right';
+      ctx.fillText(`최근 ${windowSec}초`, width - 6, height - 5);
+    }
+
+    function drawFFTSpectrum() {
+      const setup = setupHiDPICanvas(dom.fftCanvas, dom.fftContainer);
+      if (!setup || !state.lastResult) return;
+      const { ctx, width, height } = setup;
+      const { plotFreqs, plotMags, peaks, manualFreq } = state.lastResult;
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, width, height);
+
+      const padLeft = 10;
+      const padRight = 10;
+      const padTop = 22;
+      const padBottom = 24;
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      const minF = 0.2;
+      const maxF = 15.0;
+      let maxMag = 1e-6;
+      for (let i = 0; i < plotMags.length; i++) {
+        if (plotMags[i] > maxMag) maxMag = plotMags[i];
+      }
+      maxMag *= 1.15;
+
+      const freqToX = f => padLeft + ((f - minF) / (maxF - minF)) * plotW;
+      const magToY = m => padTop + plotH - (m / maxMag) * plotH;
+
+      // Vertical frequency grid (every 2.5 Hz)
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '600 10px Inter, monospace';
+      ctx.textAlign = 'center';
+
+      const ticks = [0.5, 2.5, 5, 7.5, 10, 12.5, 15];
+      for (const t of ticks) {
+        const x = freqToX(t);
+        ctx.beginPath();
+        ctx.moveTo(x, padTop);
+        ctx.lineTo(x, padTop + plotH);
+        ctx.stroke();
+        ctx.fillText(`${t}Hz`, x, height - 7);
+      }
+
+      // Baseline
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.beginPath();
+      ctx.moveTo(padLeft, padTop + plotH);
+      ctx.lineTo(padLeft + plotW, padTop + plotH);
+      ctx.stroke();
+
+      // Spectrum area fill
+      if (plotFreqs.length > 1) {
+        const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+        grad.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
+        grad.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
+
+        ctx.beginPath();
+        ctx.moveTo(freqToX(plotFreqs[0]), padTop + plotH);
+        for (let i = 0; i < plotFreqs.length; i++) {
+          ctx.lineTo(freqToX(plotFreqs[i]), magToY(plotMags[i]));
+        }
+        ctx.lineTo(freqToX(plotFreqs[plotFreqs.length - 1]), padTop + plotH);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Spectrum line
+        ctx.beginPath();
+        for (let i = 0; i < plotFreqs.length; i++) {
+          const x = freqToX(plotFreqs[i]);
+          const y = magToY(plotMags[i]);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
+      // Active selected frequency vertical guide line
+      if (manualFreq >= minF && manualFreq <= maxF) {
+        const sx = freqToX(manualFreq);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(sx, padTop - 4);
+        ctx.lineTo(sx, padTop + plotH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Mark top 3 peaks
+      peaks.forEach((pk, idx) => {
+        if (pk.freq < minF || pk.freq > maxF) return;
+        const px = freqToX(pk.freq);
+        const py = magToY(pk.amp);
+        const isSelected = Math.abs(pk.freq - manualFreq) < 0.03;
+
+        ctx.beginPath();
+        ctx.arc(px, py, isSelected ? 5 : 3.8, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? '#f59e0b' : '#38bdf8';
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = isSelected ? '#fbbf24' : '#e2e8f0';
+        ctx.font = '700 10px Inter, monospace';
+        ctx.textAlign = px > width - 45 ? 'right' : (px < 45 ? 'left' : 'center');
+        ctx.fillText(`P${idx + 1} ${pk.freq.toFixed(2)}Hz`, px, Math.max(12, py - 8));
+      });
+    }
+
+    function resizeAndRedrawCanvases() {
+      drawWaveform();
+      if (state.lastResult) drawFFTSpectrum();
+    }
+
+    // ---------------------------------------------------------
+    // 9. MEASUREMENT ENGINE (LIVE SENSOR & DEMO SYNTHESIS)
+    // ---------------------------------------------------------
+    function handleDeviceMotion(event) {
+      if (!state.isRecording) return;
+
+      // Prefer linear acceleration; fallback to accelerationIncludingGravity (DC removal handles gravity)
+      let acc = event.acceleration;
+      if (!acc || (acc.x === null && acc.y === null && acc.z === null)) {
+        acc = event.accelerationIncludingGravity;
+      }
+      if (!acc) return;
+
+      const val = acc[state.axis];
+      if (typeof val !== 'number' || Number.isNaN(val)) return;
+
+      state.sensorDetected = true;
+      const nowSec = performance.now() / 1000;
+      state.rawSamples.push({ t: nowSec, v: val });
+      dom.liveAccelVal.textContent = `${val.toFixed(3)} m/s²`;
+    }
+
+    function startDemoGenerator() {
+      // Target simulated tension based on slider (-20% to +10%)
+      const simTension = state.cable.T0 * (1 + state.demoDeltaPct / 100);
+      const f1 = calculateTheoreticalFreq(simTension, 1, state.cable);
+      const f2 = calculateTheoreticalFreq(simTension, 2, state.cable);
+      const f3 = calculateTheoreticalFreq(simTension, 3, state.cable);
+
+      // Random phases for realism
+      const p1 = Math.random() * Math.PI * 2;
+      const p2 = Math.random() * Math.PI * 2;
+      const p3 = Math.random() * Math.PI * 2;
+
+      const startSec = performance.now() / 1000;
+
+      // Generate ~60Hz synthetic vibration with slight OS-like timing jitter & ambient noise
+      state.demoIntervalId = setInterval(() => {
+        if (!state.isRecording) return;
+        const nowSec = performance.now() / 1000;
+        const t = nowSec - startSec;
+
+        // Slight exponential decay + ambient traffic excitation
+        const env = 0.65 + 0.35 * Math.exp(-0.08 * t);
+        const signal =
+          env * (
+            1.15 * Math.sin(2 * Math.PI * f1 * t + p1) +
+            0.62 * Math.sin(2 * Math.PI * f2 * t + p2) +
+            0.34 * Math.sin(2 * Math.PI * f3 * t + p3)
+          ) +
+          (Math.random() - 0.5) * 0.45 + // broadband MEMS noise
+          9.81 * (state.axis === 'z' ? 1 : 0.05); // simulated gravity offset (removed by DSP)
+
+        state.rawSamples.push({ t: nowSec, v: signal });
+        dom.liveAccelVal.textContent = `${(signal - (state.axis === 'z' ? 9.81 : 0)).toFixed(3)} m/s²`;
+      }, 16);
+    }
+
+    async function startMeasurement() {
+      if (state.mode === 'live') {
+        if (typeof window.DeviceMotionEvent === 'undefined') {
+          dom.sensorWarningBanner.classList.remove('hidden');
+          showToast('이 기기에서는 가속도 센서를 사용할 수 없습니다. 데모 모드를 이용해 주세요.', 'error');
+          return;
+        }
+        if (typeof DeviceMotionEvent.requestPermission === 'function' && !state.sensorPermissionGranted) {
+          const ok = await requestIosMotionPermission();
+          if (!ok) return;
+        }
+      }
+
+      // Reset measurement state
+      state.isRecording = true;
+      state.sensorDetected = false;
+      state.rawSamples = [];
+      state.recordStartPerf = performance.now();
+
+      // Update UI to recording state
+      dom.btnMeasureToggle.classList.remove('bg-slate-900', 'hover:bg-slate-800');
+      dom.btnMeasureToggle.classList.add('bg-red-600', 'hover:bg-red-700');
+      dom.btnMeasureText.textContent = '계측 중지';
+      dom.iconPlay.classList.add('hidden');
+      dom.iconStop.classList.remove('hidden');
+      dom.measureProgressBox.classList.remove('hidden');
+      dom.measureProgressBar.style.width = '0%';
+      dom.resultSection.classList.add('hidden');
+
+      if (state.mode === 'live') {
+        window.addEventListener('devicemotion', handleDeviceMotion);
+        // Watchdog: if no sensor events after 1.5s, warn user gracefully
+        state.sensorWatchdogId = setTimeout(() => {
+          if (state.isRecording && !state.sensorDetected) {
+            dom.sensorWarningBanner.classList.remove('hidden');
+            showToast('센서 신호가 수신되지 않습니다. HTTPS 모바일 접속 또는 데모 모드를 사용하세요.', 'error');
+          }
+        }, 1500);
+      } else {
+        startDemoGenerator();
+      }
+
+      // UI animation loop for countdown & waveform
+      const updateLoop = () => {
+        if (!state.isRecording) return;
+        const elapsed = (performance.now() - state.recordStartPerf) / 1000;
+        const remaining = Math.max(0, state.duration - elapsed);
+        const pct = Math.min(100, (elapsed / state.duration) * 100);
+
+        dom.countdownLabel.textContent = `남은 시간: ${remaining.toFixed(1)}초`;
+        dom.measureProgressBar.style.width = `${pct.toFixed(1)}%`;
+
+        const count = state.rawSamples.length;
+        const approxFs = elapsed > 0.2 ? (count / elapsed).toFixed(0) : '0';
+        dom.sampleRateLabel.textContent = `${count} samples (${approxFs} Hz)`;
+
+        drawWaveform();
+
+        if (elapsed >= state.duration) {
+          stopMeasurement(true);
+          return;
+        }
+        state.uiRafId = requestAnimationFrame(updateLoop);
+      };
+      state.uiRafId = requestAnimationFrame(updateLoop);
+    }
+
+    function stopMeasurement(shouldAnalyze = true) {
+      state.isRecording = false;
+      window.removeEventListener('devicemotion', handleDeviceMotion);
+      if (state.demoIntervalId) {
+        clearInterval(state.demoIntervalId);
+        state.demoIntervalId = null;
+      }
+      if (state.uiRafId) {
+        cancelAnimationFrame(state.uiRafId);
+        state.uiRafId = null;
+      }
+      if (state.sensorWatchdogId) {
+        clearTimeout(state.sensorWatchdogId);
+        state.sensorWatchdogId = null;
+      }
+
+      // Restore button UI
+      dom.btnMeasureToggle.classList.remove('bg-red-600', 'hover:bg-red-700');
+      dom.btnMeasureToggle.classList.add('bg-slate-900', 'hover:bg-slate-800');
+      dom.btnMeasureText.textContent = '진동 계측 시작';
+      dom.iconPlay.classList.remove('hidden');
+      dom.iconStop.classList.add('hidden');
+      dom.measureProgressBox.classList.add('hidden');
+
+      if (!shouldAnalyze) return;
+
+      try {
+        const analysis = analyzeSignal(state.rawSamples);
+        const primaryFreq = analysis.peaks[0].freq;
+
+        // Auto-estimate best matching mode order n (1..4) relative to reference T0
+        const f1Ref = calculateTheoreticalFreq(state.cable.T0, 1, state.cable);
+        let bestN = 1;
+        let minDiff = Infinity;
+        for (let n = 1; n <= 4; n++) {
+          const diff = Math.abs(primaryFreq - f1Ref * n);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestN = n;
+          }
+        }
+
+        state.lastResult = {
+          ...analysis,
+          selectedPeakIdx: 0,
+          modeOrder: bestN,
+          manualFreq: Number(primaryFreq.toFixed(2)),
+          tension: 0,
+          deviationPct: 0
+        };
+
+        recalculateAndRenderResult();
+        dom.resultSection.classList.remove('hidden');
+        drawFFTSpectrum();
+        dom.resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast('FFT 주파수 분석 및 장력 산정이 완료되었습니다.', 'success');
+      } catch (err) {
+        showToast(err.message || '신호 분석 중 오류가 발생했습니다.', 'error');
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 10. RESULT RENDERING & INTERACTIVE ADJUSTMENTS
+    // ---------------------------------------------------------
+    function recalculateAndRenderResult() {
+      const res = state.lastResult;
+      if (!res) return;
+
+      const tension = calculateTension(res.manualFreq, res.modeOrder, state.cable);
+      const deviationPct = ((tension - state.cable.T0) / state.cable.T0) * 100;
+      res.tension = tension;
+      res.deviationPct = deviationPct;
+
+      const verdict = getVerdict(deviationPct);
+
+      // Update Verdict Card
+      dom.verdictCard.className = `rounded-2xl p-4 shadow-md border-2 bg-white space-y-3 transition-colors ${verdict.cardBorder}`;
+      dom.verdictBadge.className = `px-3.5 py-2 rounded-xl text-sm font-extrabold shadow-sm text-center ${verdict.badgeClass}`;
+      dom.verdictBadge.textContent = verdict.label;
+
+      dom.resTension.textContent = Math.round(tension).toLocaleString();
+      dom.resRefTension.textContent = `${Number(state.cable.T0).toLocaleString()} kN`;
+
+      const sign = deviationPct > 0 ? '+' : '';
+      dom.resDeviation.textContent = `${sign}${deviationPct.toFixed(1)}%`;
+      dom.resDeviation.className = `text-xs font-extrabold font-mono mt-0.5 ${verdict.devColor}`;
+
+      dom.resFreqSummary.textContent = `${res.manualFreq.toFixed(2)} Hz (${res.modeOrder}차)`;
+
+      dom.verdictMessage.className = `text-xs font-medium rounded-xl p-2.5 leading-snug ${verdict.msgClass}`;
+      dom.verdictMessage.textContent = verdict.message;
+
+      // Meta info
+      dom.fftMetaInfo.textContent = `fs=${res.fs.toFixed(1)}Hz · N=${res.fftSize}`;
+
+      // Render Peak Chips
+      dom.peakButtonsContainer.innerHTML = '';
+      res.peaks.forEach((pk, idx) => {
+        const isSelected = res.selectedPeakIdx === idx;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'py-2.5 px-2 rounded-xl border text-center transition ' + (
+          isSelected
+            ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
+            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+        );
+        btn.innerHTML = `
+          <span class="block text-[10px] font-bold ${isSelected ? 'text-amber-700' : 'text-slate-400'}">Peak ${idx + 1}</span>
+          <span class="block text-xs font-extrabold font-mono mt-0.5">${pk.freq.toFixed(2)} Hz</span>
+        `;
+        btn.addEventListener('click', () => {
+          res.selectedPeakIdx = idx;
+          res.manualFreq = Number(pk.freq.toFixed(2));
+          // Re-estimate mode order for newly clicked peak
+          const f1Ref = calculateTheoreticalFreq(state.cable.T0, 1, state.cable);
+          let bestN = 1;
+          let minDiff = Infinity;
+          for (let n = 1; n <= 4; n++) {
+            const diff = Math.abs(pk.freq - f1Ref * n);
+            if (diff < minDiff) {
+              minDiff = diff;
+              bestN = n;
+            }
+          }
+          res.modeOrder = bestN;
+          recalculateAndRenderResult();
+          drawFFTSpectrum();
+        });
+        dom.peakButtonsContainer.appendChild(btn);
+      });
+
+      // Update Mode Order Buttons
+      dom.modeNButtons.forEach(btn => {
+        const active = Number(btn.dataset.n) === res.modeOrder;
+        btn.className = 'mode-n-btn py-2.5 rounded-lg text-xs font-bold transition ' + (
+          active ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+        );
+      });
+
+      // Sync manual frequency input
+      dom.inputManualFreq.value = res.manualFreq.toFixed(2);
+    }
+
+    // ---------------------------------------------------------
+    // 11. CABLE SPECS TAB LOGIC
+    // ---------------------------------------------------------
+    function renderPresets() {
+      dom.presetList.innerHTML = '';
+      CABLE_PRESETS.forEach(preset => {
+        const isCurrent = state.cable.name === preset.name && state.cable.L === preset.L && state.cable.T0 === preset.T0;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'w-full text-left p-3 rounded-xl border transition flex items-center justify-between gap-2 ' + (
+          isCurrent
+            ? 'bg-blue-50 border-blue-500'
+            : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+        );
+        btn.innerHTML = `
+          <div class="min-w-0">
+            <p class="text-xs font-extrabold ${isCurrent ? 'text-blue-900' : 'text-slate-900'}">${preset.name}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5 font-mono">L=${preset.L}m · m=${preset.m}kg/m · EI=${preset.EI} · T₀=${preset.T0}kN</p>
+          </div>
+          <span class="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg ${isCurrent ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}">
+            ${isCurrent ? '적용 중' : '선택'}
+          </span>
+        `;
+        btn.addEventListener('click', () => {
+          state.cable = { ...preset };
+          saveSpecs(state.cable);
+          updateCableSummaryUI();
+          populateSpecsForm();
+          renderPresets();
+          showToast(`[${preset.name}] 제원이 적용되었습니다.`, 'success');
+        });
+        dom.presetList.appendChild(btn);
+      });
+    }
+
+    function populateSpecsForm() {
+      dom.specName.value = state.cable.name;
+      dom.specL.value = state.cable.L;
+      dom.specM.value = state.cable.m;
+      dom.specEI.value = state.cable.EI;
+      dom.specT0.value = state.cable.T0;
+      updateTheoreticalPreview();
+      renderPresets();
+    }
+
+    function updateTheoreticalPreview() {
+      const L = parseFloat(dom.specL.value) || 120;
+      const m = parseFloat(dom.specM.value) || 45;
+      const EI = parseFloat(dom.specEI.value) || 0;
+      const T0 = parseFloat(dom.specT0.value) || 3500;
+      const tempCable = { L, m, EI, T0 };
+
+      dom.theoF1.textContent = `${calculateTheoreticalFreq(T0, 1, tempCable).toFixed(2)} Hz`;
+      dom.theoF2.textContent = `${calculateTheoreticalFreq(T0, 2, tempCable).toFixed(2)} Hz`;
+      dom.theoF3.textContent = `${calculateTheoreticalFreq(T0, 3, tempCable).toFixed(2)} Hz`;
+    }
+
+    // ---------------------------------------------------------
+    // 12. HISTORY & CSV EXPORT (UTF-8 WITH BOM FOR EXCEL)
+    // ---------------------------------------------------------
+    function formatTimestamp(isoStr) {
+      const d = new Date(isoStr);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    function updateHistoryBadge() {
+      const count = state.history.length;
+      dom.historyCount.textContent = count;
+      if (count > 0) {
+        dom.navHistoryBadge.textContent = count > 99 ? '99+' : count;
+        dom.navHistoryBadge.classList.remove('hidden');
+      } else {
+        dom.navHistoryBadge.classList.add('hidden');
+      }
+    }
+
+    function renderHistory() {
+      updateHistoryBadge();
+      dom.historyList.innerHTML = '';
+
+      if (state.history.length === 0) {
+        dom.historyEmpty.classList.remove('hidden');
+        return;
+      }
+      dom.historyEmpty.classList.add('hidden');
+
+      state.history.forEach(item => {
+        const verdict = getVerdict(item.deviationPct);
+        const sign = item.deviationPct > 0 ? '+' : '';
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-2.5';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${verdict.badgeClass}">${verdict.label}</span>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${item.mode === 'demo' ? 'DEMO' : 'LIVE'}</span>
+              </div>
+              <h3 class="text-sm font-extrabold text-slate-900 mt-1 truncate">${escapeHtml(item.cableName)}</h3>
+              <p class="text-[11px] text-slate-400 font-mono">${formatTimestamp(item.timestamp)}</p>
+            </div>
+            <button type="button" data-del-id="${item.id}" class="btn-del-item p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition" title="삭제">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6M14 11v6"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center font-mono">
+            <div class="bg-slate-50 rounded-lg p-1.5">
+              <span class="block text-[10px] text-slate-400 font-sans">산정 장력</span>
+              <strong class="text-xs text-slate-900">${Math.round(item.tension).toLocaleString()} kN</strong>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-1.5">
+              <span class="block text-[10px] text-slate-400 font-sans">변화율 (ΔT)</span>
+              <strong class="text-xs ${verdict.devColor}">${sign}${item.deviationPct.toFixed(1)}%</strong>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-1.5">
+              <span class="block text-[10px] text-slate-400 font-sans">고유진동수</span>
+              <strong class="text-xs text-blue-700">${item.freq.toFixed(2)}Hz (${item.modeOrder}차)</strong>
+            </div>
+          </div>
+        `;
+        dom.historyList.appendChild(card);
+      });
+
+      // Attach individual delete handlers
+      dom.historyList.querySelectorAll('.btn-del-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.delId;
+          state.history = state.history.filter(h => h.id !== id);
+          saveHistory(state.history);
+          renderHistory();
+          showToast('선택한 이력이 삭제되었습니다.');
+        });
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    function exportHistoryToCSV() {
+      if (state.history.length === 0) {
+        showToast('내보낼 측정 이력이 없습니다.', 'error');
+        return;
+      }
+
+      const headers = ['측정일시', '계측모드', '교량/케이블명', '유효길이(m)', '단위중량(kg/m)', '휨강성(kN·m2)', '모드차수(n)', '고유진동수(Hz)', '산정장력(kN)', '기준장력(kN)', '변화율(%)', '판정'];
+      const rows = state.history.map(item => {
+        const verdict = getVerdict(item.deviationPct);
+        return [
+          formatTimestamp(item.timestamp),
+          item.mode === 'demo' ? '시뮬레이션' : '실제센서',
+          `"${String(item.cableName).replace(/"/g, '""')}"`,
+          item.L,
+          item.m,
+          item.EI,
+          `${item.modeOrder}차`,
+          item.freq.toFixed(2),
+          item.tension.toFixed(1),
+          item.T0,
+          item.deviationPct.toFixed(2),
+          verdict.label
+        ].join(',');
+      });
+
+      // UTF-8 with BOM (\uFEFF) so Korean opens cleanly in MS Excel
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      const today = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `케이블_장력측정이력_${today}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast('엑셀용 CSV 파일이 다운로드되었습니다.', 'success');
+    }
+
+    // ---------------------------------------------------------
+    // 13. EVENT LISTENERS & INITIALIZATION
+    // ---------------------------------------------------------
+    function initEvents() {
+      // Bottom Nav Tabs
+      dom.navButtons.forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+      dom.btnGotoSpecs.addEventListener('click', () => switchTab('specs'));
+
+      // Mode Toggle
+      dom.modeLiveBtn.addEventListener('click', () => setMode('live'));
+      dom.modeDemoBtn.addEventListener('click', () => setMode('demo'));
+      dom.btnIosPermission.addEventListener('click', requestIosMotionPermission);
+
+      // Demo Slider
+      dom.demoDeltaSlider.addEventListener('input', e => {
+        const val = Number(e.target.value);
+        state.demoDeltaPct = val;
+        dom.demoDeltaBadge.textContent = `${val > 0 ? '+' : ''}${val}%`;
+      });
+
+      // Axis & Duration
+      dom.axisButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (!state.isRecording) setAxis(btn.dataset.axis);
+        });
+      });
+      dom.durButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (!state.isRecording) setDuration(Number(btn.dataset.dur));
+        });
+      });
+
+      // Measure Start / Stop
+      dom.btnMeasureToggle.addEventListener('click', () => {
+        if (state.isRecording) {
+          stopMeasurement(state.rawSamples.length >= 32);
+        } else {
+          startMeasurement();
+        }
+      });
+
+      // Mode Order n Buttons
+      dom.modeNButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (!state.lastResult) return;
+          state.lastResult.modeOrder = Number(btn.dataset.n);
+          recalculateAndRenderResult();
+        });
+      });
+
+      // Manual Frequency Fine-Tune
+      dom.inputManualFreq.addEventListener('input', e => {
+        if (!state.lastResult) return;
+        const val = parseFloat(e.target.value);
+        if (!Number.isNaN(val) && val > 0.05 && val <= 30) {
+          state.lastResult.manualFreq = val;
+          state.lastResult.selectedPeakIdx = -1;
+          recalculateAndRenderResult();
+          drawFFTSpectrum();
+        }
+      });
+      dom.btnFreqMinus.addEventListener('click', () => {
+        if (!state.lastResult) return;
+        state.lastResult.manualFreq = Math.max(0.1, Number((state.lastResult.manualFreq - 0.01).toFixed(2)));
+        state.lastResult.selectedPeakIdx = -1;
+        recalculateAndRenderResult();
+        drawFFTSpectrum();
+      });
+      dom.btnFreqPlus.addEventListener('click', () => {
+        if (!state.lastResult) return;
+        state.lastResult.manualFreq = Math.min(30, Number((state.lastResult.manualFreq + 0.01).toFixed(2)));
+        state.lastResult.selectedPeakIdx = -1;
+        recalculateAndRenderResult();
+        drawFFTSpectrum();
+      });
+
+      // Save Record
+      dom.btnSaveRecord.addEventListener('click', () => {
+        if (!state.lastResult) return;
+        const record = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: new Date().toISOString(),
+          mode: state.mode,
+          cableName: state.cable.name,
+          L: state.cable.L,
+          m: state.cable.m,
+          EI: state.cable.EI,
+          T0: state.cable.T0,
+          modeOrder: state.lastResult.modeOrder,
+          freq: state.lastResult.manualFreq,
+          tension: state.lastResult.tension,
+          deviationPct: state.lastResult.deviationPct
+        };
+        state.history.unshift(record);
+        saveHistory(state.history);
+        updateHistoryBadge();
+        showToast('측정 결과가 이력에 저장되었습니다.', 'success');
+      });
+
+      // Cable Specs Form
+      [dom.specL, dom.specM, dom.specEI, dom.specT0].forEach(el => {
+        el.addEventListener('input', updateTheoreticalPreview);
+      });
+      dom.specsForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const name = dom.specName.value.trim();
+        const L = parseFloat(dom.specL.value);
+        const m = parseFloat(dom.specM.value);
+        const EI = parseFloat(dom.specEI.value);
+        const T0 = parseFloat(dom.specT0.value);
+
+        if (!name || !(L > 0) || !(m > 0) || EI < 0 || !(T0 > 0)) {
+          showToast('올바른 케이블 제원 값을 입력해 주세요.', 'error');
+          return;
+        }
+        state.cable = { id: 'custom', name, L, m, EI, T0 };
+        saveSpecs(state.cable);
+        updateCableSummaryUI();
+        if (state.lastResult) {
+          recalculateAndRenderResult();
+        }
+        showToast('케이블 제원이 저장되었습니다.', 'success');
+        switchTab('measure');
+      });
+
+      // History Actions
+      dom.btnExportCsv.addEventListener('click', exportHistoryToCSV);
+      dom.btnClearHistory.addEventListener('click', () => {
+        if (state.history.length === 0) {
+          showToast('삭제할 이력이 없습니다.');
+          return;
+        }
+        openConfirmModal(
+          '이력 전체 삭제',
+          `저장된 ${state.history.length}건의 측정 이력을 모두 삭제하시겠습니까?`,
+          () => {
+            state.history = [];
+            saveHistory([]);
+            renderHistory();
+            showToast('모든 측정 이력이 삭제되었습니다.');
+          }
+        );
+      });
+
+      // Guide Modal
+      dom.btnOpenGuide.addEventListener('click', () => dom.guideModal.classList.remove('hidden'));
+      dom.btnCloseGuide.addEventListener('click', () => dom.guideModal.classList.add('hidden'));
+      dom.btnConfirmGuide.addEventListener('click', () => dom.guideModal.classList.add('hidden'));
+      dom.guideModal.addEventListener('click', e => {
+        if (e.target === dom.guideModal) dom.guideModal.classList.add('hidden');
+      });
+
+      // Confirm Modal
+      dom.btnConfirmCancel.addEventListener('click', closeConfirmModal);
+      dom.btnConfirmOk.addEventListener('click', () => {
+        if (typeof state.pendingConfirmAction === 'function') {
+          state.pendingConfirmAction();
+        }
+        closeConfirmModal();
+      });
+
+      // Responsive Canvas Redraw on Resize
+      window.addEventListener('resize', resizeAndRedrawCanvases);
+    }
+
+    function bootstrap() {
+      initEvents();
+      setAxis('z');
+      setDuration(10);
+      updateCableSummaryUI();
+      updateHistoryBadge();
+
+      // Default to Live on mobile touch devices with DeviceMotion, Demo on desktop for immediate testing
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      setMode(isMobile && typeof window.DeviceMotionEvent !== 'undefined' ? 'live' : 'demo');
+
+      switchTab('measure');
+    }
+
+    window.addEventListener('DOMContentLoaded', bootstrap);
+  </script>
+</body>
+</html>
